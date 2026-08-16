@@ -25,6 +25,88 @@ const TASK_CHECKINS = "taskCheckins";
 const STUDY_REVIEWS = "studyReviews";
 const ABILITY_SHEETS = "abilitySheets";
 const EXAM_RECORDS = "examRecords";
+const LOCAL_STORAGE_KEY = "yantu-study-planner:snapshot:v1";
+
+const STORE_NAMES = [META, GOALS, SUBJECTS, STAGES, CONTENT_NODES, TASKS, TASK_SCHEDULES, REPEAT_RULES, REVIEW_PLANS, REVIEW_PLAN_TEMPLATES, STUDY_SESSIONS, DAILY_TARGETS, TASK_CHECKINS, STUDY_REVIEWS, ABILITY_SHEETS, EXAM_RECORDS] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function normalizeSnapshot(value: unknown): AppSnapshot | null {
+  if (!isRecord(value)) return null;
+  const base = emptySnapshot();
+  const rawMeta = isRecord(value.meta) ? value.meta : {};
+  const collection = <T>(key: keyof AppSnapshot): T[] => Array.isArray(value[key]) ? value[key] as T[] : [];
+  const rawGoal = isRecord(value.goal) ? value.goal as Goal : null;
+  const templates = collection<ReviewPlanTemplate>("reviewPlanTemplates");
+  return {
+    ...base,
+    ...value as Partial<AppSnapshot>,
+    meta: { ...base.meta, ...rawMeta as Partial<AppMeta>, schemaVersion: DB_VERSION },
+    goal: rawGoal,
+    subjects: collection<Subject>("subjects"),
+    stages: collection<Stage>("stages"),
+    contentNodes: collection<ContentNode>("contentNodes"),
+    tasks: collection<Task>("tasks"),
+    taskSchedules: collection<TaskSchedule>("taskSchedules"),
+    repeatRules: collection<RepeatRule>("repeatRules"),
+    reviewPlans: collection<ReviewPlan>("reviewPlans"),
+    reviewPlanTemplates: templates.length ? templates : base.reviewPlanTemplates,
+    studySessions: collection<StudySession>("studySessions"),
+    dailyTargets: collection<DailyTarget>("dailyTargets"),
+    taskCheckins: collection<TaskCheckin>("taskCheckins"),
+    studyReviews: collection<StudyReview>("studyReviews"),
+    abilitySheets: collection<AbilityDataSheet>("abilitySheets"),
+    examRecords: collection<ExamRecord>("examRecords"),
+  };
+}
+
+function localStorageHandle(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readLocalSnapshot(): AppSnapshot | null {
+  const storage = localStorageHandle();
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(LOCAL_STORAGE_KEY);
+    return raw ? normalizeSnapshot(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalSnapshot(snapshot: AppSnapshot): boolean {
+  const storage = localStorageHandle();
+  if (!storage) return false;
+  try {
+    storage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(snapshot));
+    return true;
+  } catch {
+    // Quota/security errors should not prevent IndexedDB from saving.
+    return false;
+  }
+}
+
+function snapshotTimestamp(snapshot: AppSnapshot): number {
+  const timestamp = Date.parse(snapshot.meta.updatedAt);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function hasUserData(snapshot: AppSnapshot): boolean {
+  return Boolean(snapshot.meta.onboardingComplete || snapshot.goal || snapshot.subjects.length || snapshot.tasks.length || snapshot.studySessions.length || snapshot.dailyTargets.length);
+}
+
+function requestDurableStorage(): void {
+  if (typeof navigator === "undefined" || !navigator.storage?.persist) return;
+  void navigator.storage.persist().catch(() => undefined);
+}
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -43,6 +125,10 @@ function txDone(transaction: IDBTransaction): Promise<void> {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("当前浏览器不支持 IndexedDB"));
+      return;
+    }
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -140,10 +226,11 @@ export function emptySnapshot(): AppSnapshot {
   };
 }
 
-export async function loadSnapshot(): Promise<AppSnapshot> {
+async function loadIndexedDbSnapshot(): Promise<AppSnapshot> {
   const db = await openDb();
   try {
-    const tx = db.transaction([META, GOALS, SUBJECTS, STAGES, CONTENT_NODES, TASKS, TASK_SCHEDULES, REPEAT_RULES, REVIEW_PLANS, REVIEW_PLAN_TEMPLATES, STUDY_SESSIONS, DAILY_TARGETS, TASK_CHECKINS, STUDY_REVIEWS, ABILITY_SHEETS, EXAM_RECORDS], "readonly");
+    const tx = db.transaction(STORE_NAMES, "readonly");
+    const transactionDone = txDone(tx);
     const [meta, goal, subjects, stages, contentNodes, tasks, taskSchedules, repeatRules, reviewPlans, reviewPlanTemplates, studySessions, dailyTargets, taskCheckins, studyReviews, abilitySheets, examRecords] = await Promise.all([
       requestResult(tx.objectStore(META).get("app-meta")) as Promise<AppMeta | undefined>,
       requestResult(tx.objectStore(GOALS).get("current-goal")) as Promise<Goal | undefined>,
@@ -162,8 +249,8 @@ export async function loadSnapshot(): Promise<AppSnapshot> {
       requestResult(tx.objectStore(ABILITY_SHEETS).getAll()) as Promise<AbilityDataSheet[]>,
       requestResult(tx.objectStore(EXAM_RECORDS).getAll()) as Promise<ExamRecord[]>,
     ]);
-    await txDone(tx);
-    return {
+    await transactionDone;
+    const normalized = normalizeSnapshot({
       meta: meta ? { ...meta, schemaVersion: DB_VERSION } : emptySnapshot().meta,
       goal: goal ?? null,
       subjects: subjects.sort((a, b) => a.sortOrder - b.sortOrder),
@@ -182,16 +269,18 @@ export async function loadSnapshot(): Promise<AppSnapshot> {
       studyReviews,
       abilitySheets,
       examRecords,
-    };
+    });
+    return normalized ?? emptySnapshot();
   } finally {
     db.close();
   }
 }
 
-export async function saveSnapshot(snapshot: AppSnapshot): Promise<void> {
+async function saveIndexedDbSnapshot(snapshot: AppSnapshot): Promise<void> {
   const db = await openDb();
   try {
-    const tx = db.transaction([META, GOALS, SUBJECTS, STAGES, CONTENT_NODES, TASKS, TASK_SCHEDULES, REPEAT_RULES, REVIEW_PLANS, REVIEW_PLAN_TEMPLATES, STUDY_SESSIONS, DAILY_TARGETS, TASK_CHECKINS, STUDY_REVIEWS, ABILITY_SHEETS, EXAM_RECORDS], "readwrite");
+    const tx = db.transaction(STORE_NAMES, "readwrite");
+    const transactionDone = txDone(tx);
     tx.objectStore(META).put(snapshot.meta);
     tx.objectStore(GOALS).clear();
     if (snapshot.goal) tx.objectStore(GOALS).put(snapshot.goal);
@@ -237,9 +326,45 @@ export async function saveSnapshot(snapshot: AppSnapshot): Promise<void> {
     const examRecordsStore = tx.objectStore(EXAM_RECORDS);
     examRecordsStore.clear();
     for (const record of snapshot.examRecords) examRecordsStore.put(record);
-    await txDone(tx);
+    await transactionDone;
   } finally {
     db.close();
+  }
+}
+
+export async function loadSnapshot(): Promise<AppSnapshot> {
+  requestDurableStorage();
+  const localSnapshot = readLocalSnapshot();
+  try {
+    const indexedSnapshot = await loadIndexedDbSnapshot();
+    const localIsPreferred = Boolean(localSnapshot && (
+      snapshotTimestamp(localSnapshot) > snapshotTimestamp(indexedSnapshot)
+      || (hasUserData(localSnapshot) && !hasUserData(indexedSnapshot))
+    ));
+    const selected = localIsPreferred ? localSnapshot! : indexedSnapshot;
+    if (localIsPreferred) {
+      // Recover IndexedDB after browser cleanup or a temporary private-mode failure.
+      void saveIndexedDbSnapshot(selected).catch(() => undefined);
+    } else {
+      // Keep the fallback current for the next load.
+      writeLocalSnapshot(selected);
+    }
+    return selected;
+  } catch {
+    // IndexedDB may be unavailable in private mode, embedded browsers, or after a quota error.
+    return localSnapshot ?? emptySnapshot();
+  }
+}
+
+export async function saveSnapshot(snapshot: AppSnapshot): Promise<void> {
+  requestDurableStorage();
+  const normalized = normalizeSnapshot(snapshot) ?? snapshot;
+  const localSaved = writeLocalSnapshot(normalized);
+  try {
+    await saveIndexedDbSnapshot(normalized);
+  } catch (cause) {
+    // A localStorage copy is still a valid local save. Only surface an error when both stores fail.
+    if (!localSaved) throw cause;
   }
 }
 
