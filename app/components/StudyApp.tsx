@@ -828,36 +828,13 @@ function ExamProgressMatrix({ goal, mode, onBack }: { goal: Goal; mode: "exam" |
   const elapsedDays = today < rangeStart ? 0 : Math.min(totalDays, dayDifference(rangeStart, today) + 1);
   const remaining = Math.max(0, dayDifference(today, goal.examDate));
   const totalWeeks = Math.floor(totalDays / 7);
-  const elapsedWeeks = Math.min(totalWeeks, elapsedDays > 0 ? Math.max(1, Math.ceil(elapsedDays / 7)) : 0);
   const remainingWeeks = Math.floor(Math.max(0, totalDays - elapsedDays) / 7);
-  const weeks = Array.from({ length: totalWeeks }, (_, index) => {
-    const start = new Date(`${rangeStart}T00:00:00`); start.setDate(start.getDate() + index * 7);
-    const end = new Date(start); end.setDate(end.getDate() + 6);
-    return { index, start, end, monthKey: `${start.getFullYear()}-${start.getMonth()}` };
-  });
-  const monthSegments: { key: string; label: string; from: number; to: number; days: number }[] = [];
-  const startDate = new Date(`${rangeStart}T00:00:00`);
-  const endDate = new Date(`${goal.examDate}T00:00:00`);
-  let monthCursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  while (monthCursor <= endDate) {
-    const monthEnd = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0);
-    const clippedStart = monthCursor < startDate ? startDate : monthCursor;
-    const clippedEnd = monthEnd > endDate ? endDate : monthEnd;
-    const from = Math.max(0, dayDifference(rangeStart, localDate(clippedStart)));
-    const to = Math.min(totalDays, dayDifference(rangeStart, localDate(clippedEnd)) + 1);
-    if (to > from) monthSegments.push({ key: `${monthCursor.getFullYear()}-${monthCursor.getMonth()}`, label: `${monthCursor.getFullYear()}年${monthCursor.getMonth() + 1}月`, from, to, days: to - from });
-    monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1);
-  }
-  const weekSegments: { key: string; label: string; from: number; to: number }[] = [];
-  weeks.forEach((week) => {
-    const label = `${week.start.getFullYear()}年${week.start.getMonth() + 1}月`;
-    const previous = weekSegments.at(-1);
-    if (previous?.key === week.monthKey) previous.to = week.index + 1;
-    else weekSegments.push({ key: week.monthKey, label, from: week.index, to: week.index + 1 });
-  });
   const dotCount = unit === "day" ? totalDays : totalWeeks;
-  const elapsedDots = unit === "day" ? elapsedDays : elapsedWeeks;
-  const dotSegments = unit === "day" ? monthSegments.map(({ key, label, from, to }) => ({ key, label, from, to })) : weekSegments;
+  const isBeforeStart = today < rangeStart;
+  const isAfterExam = today > goal.examDate;
+  const currentDotIndex = isBeforeStart || isAfterExam ? -1 : unit === "day"
+    ? dayDifference(rangeStart, today)
+    : Math.floor(dayDifference(rangeStart, today) / 7);
   const progress = totalDays ? Math.min(100, Math.max(0, elapsedDays / totalDays * 100)) : 0;
   const label = mode === "life" ? "目标进度" : "备考进度";
   return <div className={`overview-face overview-progress matrix-${unit}`} aria-label={`${label}可视化`}>
@@ -869,15 +846,11 @@ function ExamProgressMatrix({ goal, mode, onBack }: { goal: Goal; mode: "exam" |
       </div>
     </div>
     <div className={`matrix-dot-timeline matrix-dot-timeline-${unit}`}>
-      {dotCount > 0 ? <div className="matrix-dot-track" aria-label={dotSegments.map((segment) => segment.label).join("、")}>
-        <div className="matrix-dot-groups">
-          {dotSegments.map((segment) => <div className="matrix-dot-group" key={segment.key} aria-label={segment.label}>
-            <div className="matrix-dot-grid">{Array.from({ length: segment.to - segment.from }, (_, offset) => {
-              const index = segment.from + offset;
-              return <i className={index < elapsedDots ? index === elapsedDots - 1 ? "current" : "elapsed" : "remaining"} title={unit === "day" ? `第${index + 1}天` : `第${index + 1}周`} key={index} />;
-            })}</div>
-          </div>)}
-        </div>
+      {dotCount > 0 ? <div className="matrix-dot-track" aria-label={`${label}：${unit === "day" ? totalDays : totalWeeks}${unit === "day" ? "天" : "周"}`}>
+        <div className="matrix-dot-grid">{Array.from({ length: dotCount }, (_, index) => {
+          const state = index === currentDotIndex ? "current" : (index < currentDotIndex || isAfterExam ? "elapsed" : "remaining");
+          return <i className={state} title={unit === "day" ? `第${index + 1}天` : `第${index + 1}周`} key={index} />;
+        })}</div>
       </div> : <div className="matrix-empty compact">当前周期不足一个完整周，不计入周圆点。</div>}
     </div>
     <div className="matrix-stats"><span><strong>{progress.toFixed(2)}%</strong> 进度<small>一个圆点代表一{unit === "day" ? "天" : "周"}</small></span><span><strong>{remaining}</strong> 天剩余</span><span><strong>{remainingWeeks}</strong> 周剩余</span></div>
@@ -1430,7 +1403,7 @@ function Settings({ snapshot, persist, setTheme, confirm }: { snapshot: AppSnaps
         </form>
         <section className="card settings-card recent-trash-card"><div className="settings-section-head"><div><h2>最近删除</h2><p>删除的任务保留30天，日程、打卡历史和层级关系都会一起保留。</p></div><strong>{recentlyDeleted.length}</strong></div>{recentlyDeleted.length ? <><div className="trash-toolbar"><input aria-label="搜索最近删除" value={trashQuery} onChange={(event) => setTrashQuery(event.target.value)} placeholder="搜索任务名称或备注" /><select aria-label="按科目筛选最近删除" value={trashSubject} onChange={(event) => setTrashSubject(event.target.value)}><option value="all">全部科目</option>{snapshot.subjects.map((subject) => <option value={subject.id} key={subject.id}>{subject.name}</option>)}</select><button disabled={!selectedTrashIds.size} onClick={() => restoreDeletedTasks([...selectedTrashIds])}>恢复已选 {selectedTrashIds.size || ""}</button><button disabled={!filteredDeleted.length} onClick={() => setSelectedTrashIds(new Set(filteredDeleted.map((task) => task.id)))}>全选当前</button></div><div className="recent-trash-list">{filteredDeleted.map((task) => { const subject = snapshot.subjects.find((item) => item.id === task.subjectId); return <div className={selectedTrashIds.has(task.id) ? "is-selected" : ""} key={task.id}><input aria-label={`选择${task.title}`} type="checkbox" checked={selectedTrashIds.has(task.id)} onChange={(event) => setSelectedTrashIds((current) => { const next = new Set(current); if (event.target.checked) next.add(task.id); else next.delete(task.id); return next; })} /><i style={{ background: subject?.color }} /><div><strong>{task.title}</strong><span>{subject?.name ?? "原科目已删除"} · 还可恢复 {daysRemaining(task.deletedAt)} 天</span></div><button onClick={async () => { await persist(restoreTaskFromTrash(snapshot, task.id, new Date().toISOString())); setSelectedTrashIds((current) => { const next = new Set(current); next.delete(task.id); return next; }); setMessage(`已恢复“${task.title}”`); }}>恢复</button><button className="danger-text" onClick={() => confirm({ title: `永久删除“${task.title}”？`, message: "日程、重复规则和打卡记录都会一并删除，此操作不可撤销。", confirmLabel: "永久删除", tone: "danger", onConfirm: async () => { await persist(deleteTaskFromSnapshot(snapshot, task.id, new Date().toISOString())); setMessage(`已永久删除“${task.title}”`); } })}>彻底删除</button></div>; })}</div>{!filteredDeleted.length && <div className="data-health-empty recent-trash-empty"><span>⌕</span><div><strong>没有符合条件的任务</strong><small>换个关键词或科目筛选试试。</small></div></div>}</> : <div className="data-health-empty recent-trash-empty"><span>✓</span><div><strong>最近删除为空</strong><small>误删的任务会在这里保留30天。</small></div></div>}</section>
         <section className="card settings-card">
-          <h2>本地数据与备份</h2><p>当前数据保存在这个浏览器的 IndexedDB 中。更换电脑、浏览器或清除网站数据前，请先导出备份。</p>
+          <h2>本地数据与备份</h2><p>数据会保存到当前浏览器的 IndexedDB，并同步写入 localStorage 保险副本。重新打开本网站会自动恢复；更换域名、电脑、浏览器或清除网站数据前，请先导出备份。</p>
           <div className="data-actions"><button className="btn btn-primary" onClick={exportData}>导出 JSON 备份</button><button className="btn btn-quiet" onClick={() => fileRef.current?.click()}>从备份恢复</button><input ref={fileRef} hidden type="file" accept="application/json,.json" onChange={importData} /></div>
           {snapshot.meta.lastBackupAt && <div className="metric-note">最近导出：{new Date(snapshot.meta.lastBackupAt).toLocaleString("zh-CN")}</div>}
         </section>
