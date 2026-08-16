@@ -1,0 +1,9 @@
+[build]
+  command = "pnpm run build:netlify"
+
+[build.environment]
+  NODE_VERSION = "22.13.0"
+
+[dev]
+  command = "pnpm dev"
+  port = 3000
