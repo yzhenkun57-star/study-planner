@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "build:static": "node scripts/build-static.mjs",
     "build:netlify": "node scripts/build-netlify.mjs",
     "build:vercel": "node scripts/build-vercel.mjs",
     "start": "vinext start",
