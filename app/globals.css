@@ -1521,3 +1521,93 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .overview-progress .matrix-dot-groups,
 .overview-progress .matrix-dot-group { display:none; }
 .overview-progress .matrix-empty.compact { border:0; }
+
+/* Neon dark theme and segmented progress language. */
+.app-shell[data-theme="dark"] {
+  --brand:#b7ff45;
+  --brand-dark:#8eea25;
+  --brand-soft:#172b0d;
+  --line:#1b3016;
+  --sidebar:#020704;
+  --sidebar-muted:#85947f;
+}
+.app-shell[data-theme="dark"] .btn-primary,
+.app-shell[data-theme="dark"] .segmented button.active { box-shadow:0 0 18px rgba(183,255,69,.14); }
+.app-shell[data-theme="dark"] .countdown-card { background:radial-gradient(circle at 78% 8%,rgba(183,255,69,.12),transparent 36%),var(--panel); }
+.app-shell[data-theme="dark"] .countdown-card::after { filter:drop-shadow(0 0 14px rgba(183,255,69,.12)); }
+.app-shell[data-theme="dark"] .countdown-main>strong { text-shadow:0 0 28px rgba(183,255,69,.1); }
+.app-shell[data-theme="dark"] .countdown-card .progress-fill { background:var(--brand); }
+.app-shell[data-theme="dark"] .focus-progress-fill { background:linear-gradient(180deg,#5bb51e,var(--brand)); box-shadow:0 -8px 30px rgba(183,255,69,.2); }
+
+.progress-rail,
+.weekly-study-rail,
+.weekly-review-progress>div:last-child,
+.lagging-progress-rail,
+.ability-horizontal-bars article>div,
+.ability-breakdown article>div,
+.ability-progress-rail,
+.period-goal-rail {
+  --segment-width:8px;
+  --segment-gap:3px;
+  border-radius:4px;
+  background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--line) 82%,var(--panel)) 0 var(--segment-width),transparent var(--segment-width) calc(var(--segment-width) + var(--segment-gap)));
+}
+.progress-fill,
+.weekly-study-rail i,
+.weekly-review-progress i,
+.lagging-progress-rail i,
+.ability-horizontal-bars i,
+.ability-breakdown i,
+.ability-progress-rail i,
+.period-goal-rail i {
+  border-radius:3px;
+  background:linear-gradient(90deg,var(--brand-dark),var(--brand));
+  -webkit-mask:repeating-linear-gradient(90deg,#000 0 var(--segment-width),transparent var(--segment-width) calc(var(--segment-width) + var(--segment-gap)));
+  mask:repeating-linear-gradient(90deg,#000 0 var(--segment-width),transparent var(--segment-width) calc(var(--segment-width) + var(--segment-gap)));
+}
+
+/* Week/month calendar side intelligence: goals plus compact completion bars. */
+.calendar-view-frame { min-width:0; }
+.calendar-view-frame.has-insights { display:grid; grid-template-columns:minmax(0,1fr) 270px; gap:14px; align-items:start; }
+.calendar-primary-view { min-width:0; }
+.calendar-period-insight { position:sticky; top:14px; display:grid; gap:18px; padding:16px; }
+.period-goals>header,.period-overview>header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.period-goals>header span,.period-goals>header strong,.period-overview>header span,.period-overview>header strong { display:block; }
+.period-goals>header span,.period-overview>header span { font-size:13px; font-weight:900; }
+.period-goals>header strong,.period-overview>header strong { margin-top:3px; color:var(--muted); font-size:8px; }
+.period-goals>header>b { border-radius:99px; background:var(--ink); color:var(--panel); padding:5px 9px; font-size:8px; }
+.period-goals>div { display:grid; gap:8px; margin-top:12px; }
+.period-goals>div>p { margin:0; border:1px dashed var(--line); border-radius:10px; padding:18px 10px; color:var(--muted); font-size:9px; text-align:center; }
+.period-goals article { position:relative; overflow:hidden; display:grid; gap:10px; border:1px solid color-mix(in srgb,var(--subject-color) 42%,var(--line)); border-left:4px solid var(--subject-color); border-radius:11px; background:linear-gradient(135deg,color-mix(in srgb,var(--subject-color) 15%,var(--panel)),var(--panel) 70%); padding:12px; }
+.period-goals article>div:first-child { display:flex; justify-content:space-between; gap:8px; }
+.period-goals article span { font-size:10px; font-weight:850; }.period-goals article strong { color:var(--muted); font-size:8px; }
+.period-goal-rail { height:6px; overflow:hidden; }.period-goal-rail i { display:block; height:100%; background:var(--subject-color); transition:width .35s ease; }
+.period-overview { border-top:1px solid var(--line); padding-top:16px; }
+.period-overview-bars { height:150px; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); align-items:end; gap:6px; margin-top:12px; }
+.period-overview-bars>div { min-width:0; display:grid; grid-template-rows:105px auto auto; gap:4px; align-items:end; text-align:center; }
+.period-overview-bars b { position:relative; height:100%; overflow:hidden; border-radius:7px; background:color-mix(in srgb,var(--line) 60%,var(--panel)); }
+.period-overview-bars b i { position:absolute; inset:auto 0 0; border-radius:7px 7px 4px 4px; background:linear-gradient(180deg,var(--brand),var(--brand-dark)); box-shadow:0 -4px 14px color-mix(in srgb,var(--brand) 18%,transparent); transition:height .35s ease; }
+.period-overview-bars span { overflow:hidden; color:var(--muted); font-size:7px; text-overflow:ellipsis; white-space:nowrap; }.period-overview-bars small { color:var(--ink); font-size:7px; }
+
+/* Exam progress: four weekly cells per month and one day row per month. */
+.overview-progress .matrix-dot-timeline { margin:13px 0 10px; overflow:hidden; }
+.overview-progress .matrix-dot-track { width:100%; padding:0; }
+.overview-progress .month-week-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(80px,1fr)); gap:7px; width:100%; }
+.overview-progress .month-week-group { min-width:0; display:grid; gap:5px; border:1px solid #1d2a22; border-radius:8px; background:#0d1511; padding:6px; }
+.overview-progress .month-week-group>span { color:#7e8b83; font-size:7px; }
+.overview-progress .month-week-group>div { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; }
+.overview-progress .month-week-group i { width:100%; max-width:none; height:8px; border-radius:99px; background:#1b2a20; }
+.overview-progress .month-week-group i.elapsed { background:linear-gradient(90deg,#55cf35,var(--brand)); box-shadow:0 0 8px rgba(183,255,69,.14); }
+.overview-progress .month-week-group i.current { background:#f1ffe2; box-shadow:0 0 0 2px rgba(183,255,69,.25),0 0 12px rgba(183,255,69,.5); }
+.overview-progress .month-week-group i.remaining { background:#1b2a20; }.overview-progress .month-week-group i.outside { opacity:.12; }
+.overview-progress .month-day-rows { max-height:135px; display:grid; gap:4px; overflow-y:auto; padding-right:3px; scrollbar-width:thin; scrollbar-color:#26372c transparent; }
+.overview-progress .month-day-row { display:grid; grid-template-columns:24px minmax(0,1fr); align-items:center; gap:5px; }
+.overview-progress .month-day-row>span { color:#7e8b83; font-size:7px; }
+.overview-progress .month-day-row>div { display:grid; grid-template-columns:repeat(var(--month-days),minmax(0,1fr)); gap:2px; }
+.overview-progress .month-day-row i { width:100%; max-width:8px; aspect-ratio:1; justify-self:center; border-radius:50%; opacity:.28; }
+.overview-progress .month-day-row i.week-tone-0 { background:#35d79a; }.overview-progress .month-day-row i.week-tone-1 { background:#63e15a; }.overview-progress .month-day-row i.week-tone-2 { background:#a4ef3f; }.overview-progress .month-day-row i.week-tone-3 { background:#d5dc42; }.overview-progress .month-day-row i.week-tone-4 { background:#efb84c; }
+.overview-progress .month-day-row i.elapsed { opacity:.95; }.overview-progress .month-day-row i.current { opacity:1; background:#f5ffe9; box-shadow:0 0 0 2px rgba(183,255,69,.28),0 0 8px rgba(183,255,69,.6); }.overview-progress .month-day-row i.outside { opacity:.06; }
+
+@media (max-width:1100px) { .calendar-view-frame.has-insights { grid-template-columns:minmax(0,1fr) 238px; }.period-overview-bars { gap:3px; } }
+@media (max-width:860px) { .calendar-view-frame.has-insights { grid-template-columns:1fr; }.calendar-period-insight { position:static; grid-template-columns:1fr 1fr; }.period-overview { border-top:0; border-left:1px solid var(--line); padding-top:0; padding-left:16px; } }
+@media (max-width:580px) { .calendar-period-insight { grid-template-columns:1fr; }.period-overview { border-top:1px solid var(--line); border-left:0; padding-top:16px; padding-left:0; }.overview-progress .month-week-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.overview-progress .month-day-rows { max-height:150px; } }
