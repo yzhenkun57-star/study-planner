@@ -1477,45 +1477,44 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .calendar-week-list .week-grid { grid-template-columns:repeat(7,minmax(128px,1fr)); overflow-x:auto; }
 }
 
-/* Exam progress: one uninterrupted horizontal line. The timeline may pan on
-   narrow screens, but dots never wrap into extra rows or acquire month rules. */
+/* Exam progress: one uninterrupted horizontal line. Every dot shares the
+   available width so the full preparation range stays visible without a
+   hidden side-scroll strip or month rules. */
 .overview-progress .matrix-dot-timeline {
   display:block;
   min-height:0;
   margin:28px -2px 18px;
-  overflow-x:auto;
-  overflow-y:hidden;
-  scrollbar-width:none;
+  overflow:visible;
 }
-.overview-progress .matrix-dot-timeline::-webkit-scrollbar { display:none; }
 .overview-progress .matrix-dot-track {
-  width:max-content;
-  min-width:100%;
+  width:100%;
+  min-width:0;
   padding:14px 4px;
   border:0;
   overflow:visible;
 }
 .overview-progress .matrix-dot-grid {
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(var(--matrix-dot-count), minmax(0, 1fr));
   flex-wrap:nowrap;
   align-items:center;
-  gap:var(--matrix-dot-gap, 14px);
-  width:max-content;
-  min-width:100%;
+  gap:0;
+  width:100%;
+  min-width:0;
 }
 .overview-progress .matrix-dot-grid i {
-  flex:0 0 auto;
+  justify-self:center;
   width:var(--matrix-dot-size, 13px);
-  height:var(--matrix-dot-size, 13px);
+  max-width:100%;
+  aspect-ratio:1;
+  height:auto;
   border-radius:50%;
 }
 .overview-progress .matrix-dot-timeline-day .matrix-dot-grid {
   --matrix-dot-size:8px;
-  --matrix-dot-gap:6px;
 }
 .overview-progress .matrix-dot-timeline-week .matrix-dot-grid {
   --matrix-dot-size:13px;
-  --matrix-dot-gap:14px;
 }
 .overview-progress .matrix-month-divider,
 .overview-progress .matrix-month-axis,
