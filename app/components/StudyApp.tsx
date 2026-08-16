@@ -847,7 +847,7 @@ function ExamProgressMatrix({ goal, mode, onBack }: { goal: Goal; mode: "exam" |
     </div>
     <div className={`matrix-dot-timeline matrix-dot-timeline-${unit}`}>
       {dotCount > 0 ? <div className="matrix-dot-track" aria-label={`${label}：${unit === "day" ? totalDays : totalWeeks}${unit === "day" ? "天" : "周"}`}>
-        <div className="matrix-dot-grid">{Array.from({ length: dotCount }, (_, index) => {
+        <div className="matrix-dot-grid" style={{ "--matrix-dot-count": dotCount } as React.CSSProperties}>{Array.from({ length: dotCount }, (_, index) => {
           const state = index === currentDotIndex ? "current" : (index < currentDotIndex || isAfterExam ? "elapsed" : "remaining");
           return <i className={state} title={unit === "day" ? `第${index + 1}天` : `第${index + 1}周`} key={index} />;
         })}</div>
